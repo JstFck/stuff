@@ -1,3 +1,5 @@
+import math
+
 import requests
 import pygame
 import sys
@@ -63,12 +65,12 @@ def show_map(ll_spn=None, map_type='map', add_params=None):
         map_request += '&' + add_params
     response = requests.get(map_request)
     if not response:
-        print(f"""Ошибка выполнения запроса: {map_request} \n
-                  Http статус: {response.status_code} ({response.reason}""")
+        print(f"""Ошибка выполнения запроса: {map_request} \nHttp статус: {response.status_code} ({response.reason})"""
+              )
         sys.exit(1)
     map_file = 'map.png'
     try:
-        with open(map_file, 'wb') as  file:
+        with open(map_file, 'wb') as file:
             file.write(response.content)
     except IOError as ex:
         print('Ошибка записи временного файла:', ex)
@@ -81,3 +83,44 @@ def show_map(ll_spn=None, map_type='map', add_params=None):
         pass
     pygame.quit()
     os.remove(map_file)
+
+
+def search(ll, spn, request, locale='ru_RU'):
+    search_api_server = 'https://search-maps.yandex.ru/v1/'
+    api_key = 'dda3ddba-c9ea-4ead-9010-f43fbc15c6e3'
+    search_params = {
+        'apikey': api_key,
+        'text': request,
+        'lang': locale,
+        'll': ll,
+        'spn': spn,
+        'type': 'biz'
+    }
+    response = requests.get(search_api_server, params=search_params)
+    if not response:
+        raise RuntimeError(f'''Ошибка выполнения запроса {search_api_server} \nhttp статус {response.status_code} 
+        ({response.reason})''')
+    json_response = response.json()
+    organizations = json_response['features']
+    return organizations
+
+
+def find_business(ll, spn, request, locale='ru_ru'):
+    orgs = find_business(ll, spn, request, locale=locale)
+    if len(orgs):
+        return orgs[0]
+
+
+def lonlat_distance(a, b):
+    degree_to_meters = 111 * 1000
+    a_lon, a_lat = a
+    b_lon, b_lat = b
+
+    radians_lat = math.radians((a_lat + b_lat) / 2)
+    lat_lon_factor = math.cos(radians_lat)
+
+    dx = abs(a_lon - b_lon) * degree_to_meters * lat_lon_factor
+    dy = abs(a_lat - b_lat) * degree_to_meters
+
+    distance = math.sqrt(dx ** 2 + dy ** 2)
+    return distance
